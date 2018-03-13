@@ -86,7 +86,7 @@ class UniqueRegistrationSerializerMixin(Serializer):
         return attrs
 
 
-class FCMDeviceSerializer(ModelSerializer, UniqueRegistrationSerializerMixin):
+class FCMDeviceSerializer(ModelSerializer):
     class Meta(DeviceSerializerMixin.Meta):
         model = FCMDevice
 
@@ -108,6 +108,10 @@ class DeviceViewSetMixin(object):
         if is_user_authenticated(self.request.user):
             serializer.save(user=self.request.user)
 
+            if SETTINGS["OVERWRITE_DUPLICATE_REGISTRATION_ID"]:
+                registration_id = self.request.data.get('registration_id')
+                FCMDevice.objects.filter(registration_id=registration_id).delete()
+
             if (SETTINGS["ONE_DEVICE_PER_USER"] and
                     self.request.data.get('active', True)):
                 FCMDevice.objects.filter(user=self.request.user).update(
@@ -118,6 +122,11 @@ class DeviceViewSetMixin(object):
     def perform_update(self, serializer):
         if is_user_authenticated(self.request.user):
             serializer.save(user=self.request.user)
+
+            if SETTINGS["OVERWRITE_DUPLICATE_REGISTRATION_ID"]:
+                registration_id = self.request.data.get('registration_id')
+                if registration_id:
+                    FCMDevice.objects.filter(registration_id=registration_id).delete()
 
             if (SETTINGS["ONE_DEVICE_PER_USER"] and
                     self.request.data.get('active', False)):
